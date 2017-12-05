@@ -63,6 +63,7 @@ main(int argc, char **argv)
 	}
 
 	ret = close(fd);
+	printf("Close worked\n");
 	if(ret) {
 		err(1, "Failed to close file\n");
 	}

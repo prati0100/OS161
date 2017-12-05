@@ -44,6 +44,8 @@
 #include <vfs.h>
 #include <syscall.h>
 #include <test.h>
+#include <filetable.h>
+#include <proctable.h>
 
 /*
  * Load program "progname" and start running it in usermode.
@@ -67,6 +69,7 @@ runprogram(char *progname)
 
 	/* We should be a new process. */
 	KASSERT(proc_getas() == NULL);
+	KASSERT(proc_getft() == NULL);
 
 	/* Create a new address space. */
 	as = as_create();
@@ -78,6 +81,10 @@ runprogram(char *progname)
 	/* Switch to it and activate it. */
 	proc_setas(as);
 	as_activate();
+
+	/*Create the filetable*/
+	struct filetable *ft = ftable_create("name");
+	proc_setft(ft);
 
 	/* Load the executable. */
 	result = load_elf(v, &entrypoint);
@@ -97,6 +104,9 @@ runprogram(char *progname)
 		return result;
 	}
 
+	/* Insert the process into the process table and set it's pid */
+	ptable_insert(curproc, &curproc->p_pid);
+
 	/* Warp to user mode. */
 	enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
 			  NULL /*userspace addr of environment*/,
@@ -106,4 +116,3 @@ runprogram(char *progname)
 	panic("enter_new_process returned\n");
 	return EINVAL;
 }
-

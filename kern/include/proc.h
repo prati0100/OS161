@@ -37,6 +37,10 @@
  */
 
 #include <spinlock.h>
+#include <filetable.h>
+#include <synch.h>
+#include <types.h>
+#include <threadlist.h>
 
 struct addrspace;
 struct thread;
@@ -71,6 +75,19 @@ struct proc {
 	struct vnode *p_cwd;		/* current working directory */
 
 	/* add more material here as needed */
+
+	/* Filetable */
+	struct filetable *p_ftable;
+
+	pid_t p_pid;  /* Current process's pid */
+	pid_t p_ppid;  /* Parent's pid */
+
+	int p_exitstatus;  /* Exit status for the process */
+	bool p_exited;	/* Whether the process has exited yet or not */
+
+	/*The condition variable for waitpid()*/
+	struct cv *p_waitcv;
+	struct lock *p_waitlock; /* The sleeplock for waiting on this process */
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
@@ -97,5 +114,10 @@ struct addrspace *proc_getas(void);
 /* Change the address space of the current process, and return the old one. */
 struct addrspace *proc_setas(struct addrspace *);
 
+/*Fetch the filetable of the current process*/
+struct filetable *proc_getft(void);
+
+/*Change the filetable of the current process, and return the old one*/
+struct filetable *proc_setft(struct filetable *);
 
 #endif /* _PROC_H_ */

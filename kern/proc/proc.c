@@ -48,6 +48,9 @@
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
+#include <filetable.h>
+#include <synch.h>
+#include <threadlist.h>
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
@@ -81,6 +84,17 @@ proc_create(const char *name)
 
 	/* VFS fields */
 	proc->p_cwd = NULL;
+
+	/* Filetable fields */
+	proc->p_ftable = NULL;
+
+	/* Initialize exit status */
+	proc->p_exitstatus = -1;
+	proc->p_exited = false;
+
+	/* Initialize the sleeplock and cv for this process */
+	proc->p_waitlock = NULL;
+	proc->p_waitcv = NULL;
 
 	return proc;
 }
@@ -165,6 +179,9 @@ proc_destroy(struct proc *proc)
 		as_destroy(as);
 	}
 
+	lock_destroy(proc->p_waitlock);
+	cv_destroy(proc->p_waitcv);
+
 	KASSERT(proc->p_numthreads == 0);
 	spinlock_cleanup(&proc->p_lock);
 
@@ -205,6 +222,13 @@ proc_create_runprogram(const char *name)
 	newproc->p_addrspace = NULL;
 
 	/* VFS fields */
+
+	/* waitpid related fields */
+	newproc->p_waitlock = lock_create(name);
+	newproc->p_waitcv = cv_create(name);
+
+	/* Set parent pid to current process's pid */
+	newproc->p_ppid = curproc->p_pid;
 
 	/*
 	 * Lock the current process to copy its current directory.
@@ -317,4 +341,35 @@ proc_setas(struct addrspace *newas)
 	proc->p_addrspace = newas;
 	spinlock_release(&proc->p_lock);
 	return oldas;
+}
+
+struct filetable *
+proc_getft(void)
+{
+	struct filetable *ft;
+	struct proc *proc = curproc;
+
+	if (proc == NULL) {
+		return NULL;
+	}
+
+	spinlock_acquire(&proc->p_lock);
+	ft = proc->p_ftable;
+	spinlock_release(&proc->p_lock);
+	return ft;
+}
+
+struct filetable *
+proc_setft(struct filetable *newft)
+{
+	struct filetable *oldft;
+	struct proc *proc = curproc;
+
+	KASSERT(proc != NULL);
+
+	spinlock_acquire(&proc->p_lock);
+	oldft = proc->p_ftable;
+	proc->p_ftable = newft;
+	spinlock_release(&proc->p_lock);
+	return oldft;
 }

@@ -36,6 +36,7 @@
 
 
 #include <spinlock.h>
+#include <thread.h>
 
 /*
  * Dijkstra-style semaphore.
@@ -77,6 +78,10 @@ struct lock {
         HANGMAN_LOCKABLE(lk_hangman);   /* Deadlock detector hook. */
         // add what you need here
         // (don't forget to mark things volatile as needed)
+				struct spinlock lk_spinlock; //The spinlock for synchronizing the lock functions
+				volatile struct thread *lk_holder; //The thread that holds the lock
+				volatile bool is_held;
+				struct wchan *lk_wchan; //The wait channel for this lock
 };
 
 struct lock *lock_create(const char *name);
@@ -116,6 +121,8 @@ struct cv {
         char *cv_name;
         // add what you need here
         // (don't forget to mark things volatile as needed)
+				struct wchan *cv_wchan;
+				struct spinlock cv_spinlock;
 };
 
 struct cv *cv_create(const char *name);
@@ -152,6 +159,12 @@ struct rwlock {
         char *rwlock_name;
         // add what you need here
         // (don't forget to mark things volatile as needed)
+				struct spinlock rwlock_spinlock;
+				struct thread *rwlock_writer_thrd;
+				volatile int reader_count; //Number of readers holding the lock
+				volatile int writer_count; //Number of writers holding the lock. Can't be more than 1
+				struct wchan *reader_wchan;
+				struct wchan *writer_wchan;
 };
 
 struct rwlock * rwlock_create(const char *);
@@ -161,7 +174,7 @@ void rwlock_destroy(struct rwlock *);
  * Operations:
  *    rwlock_acquire_read  - Get the lock for reading. Multiple threads can
  *                          hold the lock for reading at the same time.
- *    rwlock_release_read  - Free the lock. 
+ *    rwlock_release_read  - Free the lock.
  *    rwlock_acquire_write - Get the lock for writing. Only one thread can
  *                           hold the write lock at one time.
  *    rwlock_release_write - Free the write lock.

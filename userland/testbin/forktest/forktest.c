@@ -74,7 +74,9 @@ int
 dofork(void)
 {
 	int pid;
+	printf("About to fork\n");
 	pid = fork();
+	printf("Fork done!\n");
 	if (pid < 0) {
 		warn("fork");
 	}
