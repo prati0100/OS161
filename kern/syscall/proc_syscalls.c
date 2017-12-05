@@ -1,3 +1,7 @@
+/*
+ * Author: Pratyush Yadav
+ */
+
 #include <types.h>
 #include <limits.h>
 #include <synch.h>
@@ -230,5 +234,6 @@ sys_waitpid(pid_t pid, userptr_t status, int options, int32_t *retval)
 int
 sys_execv(const_userptr_t program, userptr_t args)
 {
+  int result;
 
 }
