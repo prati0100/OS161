@@ -318,17 +318,18 @@ int sys_dup2(int oldfd, int newfd, int32_t *retval)
   }
 
   newfh = ft->table[newfd];
+  spinlock_release(&ft->ft_lock);
 
   if(newfh != NULL)
   {
-    fhandle_destroy(newfh); /*This will close the file*/
-    ft->table[newfd] = NULL;
-    newfh = NULL;
+    sys_close(newfd);
   }
 
+  spinlock_acquire(&ft->ft_lock);
+  oldfh->fh_refcount++;
   ft->table[newfd] = oldfh;
-
   spinlock_release(&ft->ft_lock);
+
   *retval = newfd;
   return 0;
 }
