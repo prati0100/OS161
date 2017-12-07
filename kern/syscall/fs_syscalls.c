@@ -125,10 +125,6 @@ int sys_read(int fd, userptr_t buf, size_t buflen, int32_t *retval)
   bytes_read = u.uio_offset - offset; /*The offset now - the old offset, will give number of bytes read*/
 
   lock_release(lk);
-  if(result)
-  {
-    return result;
-  }
 
   *retval = bytes_read;
   return 0;
