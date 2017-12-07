@@ -39,6 +39,10 @@
 #include <vm.h>
 #include <mainbus.h>
 #include <syscall.h>
+#include <proc.h>
+#include <proctable.h>
+#include <spinlock.h>
+#include <kern/wait.h>
 
 
 /* in exception-*.S */
@@ -114,7 +118,43 @@ kill_curthread(vaddr_t epc, unsigned code, vaddr_t vaddr)
 
 	kprintf("Fatal user mode trap %u sig %d (%s, epc 0x%x, vaddr 0x%x)\n",
 		code, sig, trapcodenames[code], epc, vaddr);
-	panic("I don't know how to handle this\n");
+	kprintf("About to kill the process\n");
+
+	/* Kill the process. */
+
+	/*
+	 * The following code is very similar to sys__exit(). Please read the comments
+	 * there if something here does not make sense to you.
+	 */
+
+	 struct proc *parent;
+   int result;
+   result = ptable_get(curproc->p_ppid, &parent);
+   if(parent == NULL || parent->p_exited == true)
+   {
+     struct proc *p;
+     /* Since there is no parent to call waitpid(), we must remove the current
+      * process from the process table */
+     result = ptable_remove(curproc->p_pid, &p);
+     KASSERT(result == 0); /* Removal of current process HAS to succeed */
+     proc_remthread(curthread);
+     proc_destroy(curproc);
+   }
+   /* Otherwise store the exit code and then exit, without destroying the process */
+   else
+   {
+     /* Set up the exit status for this process. For details about this macro, check kern/wait.h */
+     int status = _MKWAIT_SIG(sig);
+     spinlock_acquire(&curproc->p_lock);
+     curproc->p_exitstatus = status;
+     curproc->p_exited = true;
+     lock_acquire(curproc->p_waitlock);
+     cv_broadcast(curproc->p_waitcv, curproc->p_waitlock); /* Wake up all processes waiting for us to exit */
+     lock_release(curproc->p_waitlock);
+     spinlock_release(&curproc->p_lock);
+   }
+
+   thread_exit(); /* Kill the current thread and end the process */
 }
 
 /*
