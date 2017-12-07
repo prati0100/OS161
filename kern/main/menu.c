@@ -95,6 +95,7 @@ cmd_progthread(void *ptr, unsigned long nargs)
 	if (result) {
 		kprintf("Running program %s failed: %s\n", args[0],
 			strerror(result));
+		sys__exit(result);
 		return;
 	}
 
@@ -120,6 +121,7 @@ common_prog(int nargs, char **args)
 	struct proc *proc;
 	int result;
 	unsigned tc;
+	pid_t pid;
 
 	/* Create a process for the new program to run in. */
 	proc = proc_create_runprogram(args[0] /* name */);
@@ -136,6 +138,13 @@ common_prog(int nargs, char **args)
 	if (result) {
 		kprintf("thread_fork failed: %s\n", strerror(result));
 		proc_destroy(proc);
+		return result;
+	}
+
+	pid = proc->p_pid;
+	result = sys_waitpid(pid, NULL, 0, &pid);
+	if(result)
+	{
 		return result;
 	}
 
