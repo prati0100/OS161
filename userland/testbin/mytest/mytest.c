@@ -5,6 +5,8 @@
 #include <err.h>
 #include <test161/test161.h>
 
+extern int errno;
+
 int main(int argc, char const *argv[]) {
   (void) argc;
   (void) argv;
@@ -16,19 +18,28 @@ int main(int argc, char const *argv[]) {
     return 0;
 	}
   if(pid == 0) {
-    char str[] = "Inside child.";
-    int fd;
-    fd = open("child.txt", (O_RDWR | O_CREAT));
-    write(fd, str, strlen(str));
-    return 0;
+    /* child */
+    int result;
+    char *args[3];
+    args[0] = (char *)"Hello";
+    args[1] = (char *)"World";
+    args[2] = NULL;
+    for(int i = 0; i < 2; i++)
+    {
+      printf("%s\n", args[i]);
+    }
+    printf("About to exec\n");
+    result = execv("testbin/testprog", args);
+    if(result)
+    {
+      printf("execv failed. errno: %d\n", errno);
+      return 25;
+    }
   }
   else {
-    char str[] = "Inside parent. Child's pid is: ";
-    int fd;
-    fd = open("parent.txt", (O_RDWR | O_CREAT));
-    write(fd, str, strlen(str));
-    return 0;
+    int status;
+    waitpid(pid, &status, 0);
+    printf("Status returned: %d\n", status);
   }
-
   return 0;
 }

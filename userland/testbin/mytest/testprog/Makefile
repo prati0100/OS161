@@ -1,10 +1,10 @@
 # Makefile for mytest
 
-TOP=../../..
+TOP=../../../..
 .include "$(TOP)/mk/os161.config.mk"
 
-PROG=mytest
-SRCS=mytest.c
+PROG=testprog
+SRCS=testprog.c
 BINDIR=/testbin
 
 .include "$(TOP)/mk/os161.prog.mk"
