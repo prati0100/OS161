@@ -49,6 +49,7 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <filetable.h>
+#include <proctable.h>
 #include <synch.h>
 #include <threadlist.h>
 
@@ -229,6 +230,9 @@ proc_create_runprogram(const char *name)
 
 	/* Set parent pid to current process's pid */
 	newproc->p_ppid = curproc->p_pid;
+
+	/* Insert the process into the process table and set it's pid */
+	ptable_insert(newproc, &newproc->p_pid);
 
 	/*
 	 * Lock the current process to copy its current directory.

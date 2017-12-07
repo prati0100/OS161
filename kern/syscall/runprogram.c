@@ -104,9 +104,6 @@ runprogram(char *progname)
 		return result;
 	}
 
-	/* Insert the process into the process table and set it's pid */
-	ptable_insert(curproc, &curproc->p_pid);
-
 	/* Warp to user mode. */
 	enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
 			  NULL /*userspace addr of environment*/,
