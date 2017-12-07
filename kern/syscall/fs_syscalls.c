@@ -189,10 +189,6 @@ int sys_write(int fd, userptr_t buf, size_t buflen, int32_t *retval)
   }
 
   bytes_written = u.uio_offset - offset; /*The offset now - the old offset, will give number of bytes written*/
-  /*if(u.uio_resid == 0)
-  {
-    bytes_written = 0;
-  }*/
 
   fh->offset += bytes_written;
 
