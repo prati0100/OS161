@@ -194,20 +194,7 @@ sys_waitpid(pid_t pid, userptr_t status, int options, int32_t *retval)
     lock_release(target->p_waitlock);
   }
 
-  int curstatus = target->p_exitstatus;
-  if(WIFEXITED(curstatus))
-  {
-    exitstatus = WEXITSTATUS(curstatus);
-  }
-  else if(WIFSTOPPED(curstatus))
-  {
-    exitstatus = WSTOPSIG(curstatus);
-  }
-  else
-  {
-    exitstatus = WTERMSIG(curstatus);
-  }
-
+  exitstatus = target->p_exitstatus;
   if(status != NULL)
   {
     result = copyout(&exitstatus, status, sizeof(exitstatus));
