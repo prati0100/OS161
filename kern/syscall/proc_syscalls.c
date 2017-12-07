@@ -11,11 +11,14 @@
 #include <mips/trapframe.h>
 #include <kern/errno.h>
 #include <kern/wait.h>
+#include <kern/fcntl.h>
 #include <proctable.h>
 #include <addrspace.h>
 #include <copyinout.h>
 #include <thread.h>
 #include <filetable.h>
+#include <vnode.h>
+#include <vfs.h>
 
 int sys_getpid(int32_t *retval)
 {
@@ -218,9 +221,237 @@ sys_waitpid(pid_t pid, userptr_t status, int options, int32_t *retval)
   return 0;
 }
 
+/*
+ * Given the ARGS buffer, extract all the arg strings into ARGBUF making sure
+ * no invalid memory operations are made. Helper for sys_execv().
+ */
+static
 int
-sys_execv(const_userptr_t program, userptr_t args)
+extract_args(userptr_t *args, char **argbuf, int *argcount)
 {
-  int result;
+  int result, argc;
+  size_t length;
+  /* Get the number of arguments being passed. args is NULL terminated. */
+  argc = 0;
+  int total_size = 0; /* The total combined size of args (should be less than ARG_MAX). */
+  char *temp = kmalloc(sizeof(char)*ARG_MAX);
+  if(temp == NULL)
+  {
+    return ENOMEM;
+  }
 
+  /* Copy the actual argument strings one by one, keeping a check for invalid
+   * addresses. We use a dummy for copyin to make sure no invalid address is in args. */
+  char *dummy;
+  result = copyin((const_userptr_t)&args[argc], &dummy, sizeof(char *));
+  if(result)
+  {
+    kfree(temp);
+    return result;
+  }
+
+  while(dummy != NULL)
+  {
+    result = copyinstr((const_userptr_t)args[argc], temp, ARG_MAX, &length);
+    if(result)
+    {
+      for(int j = 0; j < argc; j++)
+      {
+        kfree(argbuf[j]);
+      }
+      kfree(temp);
+      return result;
+    }
+    total_size += length;
+    /* If the total size of args exceeds ARG_MAX, return error. */
+    if(total_size > ARG_MAX)
+    {
+      for(int j = 0; j < argc; j++)
+      {
+        kfree(argbuf[j]);
+      }
+      kfree(temp);
+      return E2BIG;
+    }
+
+    argbuf[argc] = kmalloc(sizeof(char) * length);
+    strcpy(argbuf[argc], temp);
+    argc++;
+
+    /*
+     * This condition might become true when args is not NULL terminated.
+     * Here we are checking if argbuf[argc] goes out of bounds of the allocated
+     * memory. There should be a more elegant way to check for this but I can't
+     * be bothered to try.
+     */
+    if(&argbuf[argc] > (argbuf + ARG_MAX))
+    {
+      for(int j = 0; j < argc; j++)
+      {
+        kfree(argbuf[j]);
+      }
+      kfree(temp);
+      return E2BIG;
+    }
+
+    /* Copyin the next arg to make sure it is a valid pointer. */
+    result = copyin((const_userptr_t)&args[argc], &dummy, sizeof(char *));
+    if(result)
+    {
+      for(int j = 0; j < argc; j++)
+      {
+        kfree(argbuf[j]);
+      }
+      kfree(temp);
+      return result;
+    }
+  }
+
+  kfree(temp);
+  argbuf[argc] = NULL;
+  *argcount = argc;
+  return 0;
+}
+
+int
+sys_execv(const_userptr_t program, userptr_t *args)
+{
+  int result, argc;
+  size_t length;
+  char pathname[PATH_MAX];
+  struct vnode *vn;
+  vaddr_t startpoint, stackptr;
+  struct addrspace *oldas, *as;
+  userptr_t *uargs;
+  char **argbuf; /* Buffer to temporarily store args. */
+
+  argbuf = kmalloc(sizeof(char*)*ARG_MAX); /* Max total size of args is ARG_MAX. */
+  if(argbuf == NULL)
+  {
+    return ENOMEM;
+  }
+
+  result = extract_args(args, argbuf, &argc);
+  if(result)
+  {
+    kfree(argbuf);
+    return result;
+  }
+
+  /* Copy the program name from userspace buffer to kernel-space buffer. */
+  result = copyinstr(program, pathname, PATH_MAX, &length);
+  if(result)
+  {
+    for(int i = 0; i < argc; i++)
+    {
+      kfree(argbuf[i]);
+    }
+    kfree(argbuf);
+    return result;
+  }
+
+  /* Open the file. */
+  result = vfs_open(pathname, O_RDONLY, 0, &vn);
+  if(result)
+  {
+    for(int i = 0; i < argc; i++)
+    {
+      kfree(argbuf[i]);
+    }
+    kfree(argbuf);
+    return result;
+  }
+
+  /* Remove the old address space, but don't get rid of it just yet, in case exec fails somewhere ahead. */
+  oldas = proc_getas();
+  as_deactivate();
+
+  /* Create a new address space. */
+	as = as_create();
+	if (as == NULL) {
+		vfs_close(vn);
+    for(int i = 0; i < argc; i++)
+    {
+      kfree(argbuf[i]);
+    }
+    kfree(argbuf);
+		return ENOMEM;
+	}
+
+  /* Switch to the new address space and activate it. */
+	proc_setas(as);
+	as_activate();
+
+  /* Load the ELF file. */
+  result = load_elf(vn, &startpoint);
+  if(result)
+  {
+    for(int i = 0; i < argc; i++)
+    {
+      kfree(argbuf[i]);
+    }
+    kfree(argbuf);
+    vfs_close(vn);
+
+    /* Get rid of the new address space */
+    as_deactivate();
+    as_destroy(as);
+
+    /* Restore the old address space. */
+    proc_setas(oldas);
+    as_activate();
+    return result;
+  }
+
+  vfs_close(vn); /* We are done with the file. */
+
+  result = as_define_stack(as, &stackptr);
+  if(result)
+  {
+    for(int i = 0; i < argc; i++)
+    {
+      kfree(argbuf[i]);
+    }
+    kfree(argbuf);
+
+    /* Get rid of the new address space. */
+    as_deactivate();
+    as_destroy(as);
+
+    /* Restore the old address space. */
+    proc_setas(oldas);
+    as_activate();
+    return result;
+  }
+
+  /* Setting up args in new process's userspace. */
+  stackptr -= (argc + 1) * sizeof(char *); /* Create space for all string (including NULL terminator) pointers on stack */
+  uargs = (userptr_t*)stackptr;
+  for(int i = 0; i < argc; i++)
+  {
+    stackptr -= strlen(argbuf[i]) + 1;
+    uargs[i] = (userptr_t)stackptr;
+    result = copyout(argbuf[i], uargs[i], strlen(argbuf[i]) + 1);
+    if(result)
+    {
+      /* Should we panic here or just return an error? I'm not sure. */
+      panic("copyout failed!"); /* Possible errors in args should be already checked for */
+    }
+  }
+  uargs[argc] = NULL;
+
+  /* Everything done. Time for cleanup. */
+  as_destroy(oldas);
+  for(int i = 0; i < argc; i++)
+  {
+    kfree(argbuf[i]);
+  }
+  kfree(argbuf);
+
+  enter_new_process(argc, (userptr_t)uargs /* Userspace address of argv */,
+        NULL /* Userspace address of env */, stackptr, startpoint);
+
+  /* enter_new_process does not return. */
+	panic("enter_new_process returned\n");
+	return EINVAL;
 }

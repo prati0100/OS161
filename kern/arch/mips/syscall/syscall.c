@@ -160,7 +160,7 @@ syscall(struct trapframe *tf)
 		break;
 
 			case SYS_execv:
-		err = SYS_execv((const_userptr_t)tf->tf_a0, (userptr_t)tf->tf_a1, &retval);
+		err = sys_execv((const_userptr_t)tf->tf_a0, (userptr_t*)tf->tf_a1);
 		break;
 
 	    default:
