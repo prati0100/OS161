@@ -57,4 +57,4 @@ int ptable_remove(pid_t pid, struct proc **retval);
  * does not exist, set RETVAl to NULL, and return error code
  */
 int ptable_get(pid_t pid, struct proc **retval);
-#endif
+#endif /* _PROCTABLE_H_ */

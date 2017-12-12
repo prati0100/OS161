@@ -49,4 +49,4 @@ void fhandle_destroy(struct filehandle *);
 int ftable_add(struct filetable *, struct filehandle *, int *ret);
 int ftable_get(struct filetable *, int index, struct filehandle **ret);
 int ftable_remove(struct filetable *, int index);
-#endif
+#endif /* _FILETABLE_H_ */
