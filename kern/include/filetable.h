@@ -2,8 +2,8 @@
  * Author: Pratyush Yadav
  */
 
-#ifndef _FILETABLE_H
-#define _FILETABLE_H
+#ifndef _FILETABLE_H_
+#define _FILETABLE_H_
 
 #include <types.h>
 #include <vnode.h>

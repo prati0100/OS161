@@ -2,8 +2,8 @@
  * Author: Pratyush Yadav
  */
 
-#ifndef _PROCTABLE_H
-#define _PROCTABLE_H
+#ifndef _PROCTABLE_H_
+#define _PROCTABLE_H_
 
 #include <types.h>
 #include <spinlock.h>
