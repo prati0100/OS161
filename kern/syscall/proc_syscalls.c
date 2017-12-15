@@ -222,26 +222,30 @@ sys_waitpid(pid_t pid, userptr_t status, int options, int32_t *retval)
 }
 
 /*
- * Given the ARGS buffer, extract all the arg strings into ARGBUF making sure
- * no invalid memory operations are made. Helper for sys_execv().
+ * Extract all the argument strings into BUF making sure no invalid memory
+ * operations are made. Helper for sys_execv().
  */
 static
 int
-extract_args(userptr_t *args, char **argbuf, int *argcount)
+extract_args(userptr_t *args, char ***buf, int *argcount)
 {
-  int result, argc;
+  int result, argc = 0, i;
   size_t length;
-  /* Get the number of arguments being passed. args is NULL terminated. */
-  argc = 0;
-  int total_size = 0; /* The total combined size of args (should be less than ARG_MAX). */
+  char **argbuf;
+  /* The total combined size of args (should be less than ARG_MAX). */
+  int total_size = 0;
+
+  /* For temporarily storing argument strings before copying them. */
   char *temp = kmalloc(sizeof(char)*ARG_MAX);
   if(temp == NULL)
   {
     return ENOMEM;
   }
 
-  /* Copy the actual argument strings one by one, keeping a check for invalid
-   * addresses. We use a dummy for copyin to make sure no invalid address is in args. */
+  /*
+   * Count the total number of arguments passed. We use a dummy for copyin to
+   * make sure no invalid address is in args.
+   */
   char *dummy;
   result = copyin((const_userptr_t)&args[argc], &dummy, sizeof(char *));
   if(result)
@@ -249,47 +253,13 @@ extract_args(userptr_t *args, char **argbuf, int *argcount)
     kfree(temp);
     return result;
   }
+  argc++;
 
   while(dummy != NULL)
   {
-    result = copyinstr((const_userptr_t)args[argc], temp, ARG_MAX, &length);
-    if(result)
+    /* If there are too many arguments, return an error. */
+    if(argc > ARG_MAX)
     {
-      for(int j = 0; j < argc; j++)
-      {
-        kfree(argbuf[j]);
-      }
-      kfree(temp);
-      return result;
-    }
-    total_size += length;
-    /* If the total size of args exceeds ARG_MAX, return error. */
-    if(total_size > ARG_MAX)
-    {
-      for(int j = 0; j < argc; j++)
-      {
-        kfree(argbuf[j]);
-      }
-      kfree(temp);
-      return E2BIG;
-    }
-
-    argbuf[argc] = kmalloc(sizeof(char) * length);
-    strcpy(argbuf[argc], temp);
-    argc++;
-
-    /*
-     * This condition might become true when args is not NULL terminated.
-     * Here we are checking if argbuf[argc] goes out of bounds of the allocated
-     * memory. There should be a more elegant way to check for this but I can't
-     * be bothered to try.
-     */
-    if(&argbuf[argc] > (argbuf + ARG_MAX))
-    {
-      for(int j = 0; j < argc; j++)
-      {
-        kfree(argbuf[j]);
-      }
       kfree(temp);
       return E2BIG;
     }
@@ -298,18 +268,54 @@ extract_args(userptr_t *args, char **argbuf, int *argcount)
     result = copyin((const_userptr_t)&args[argc], &dummy, sizeof(char *));
     if(result)
     {
-      for(int j = 0; j < argc; j++)
+      kfree(temp);
+      return result;
+    }
+    argc++;
+  }
+  argc--;  /* We get 1 extra argc++ because of the NULL terminator. */
+
+  /* Allocate a buffer to store all argument string pointers in. */
+  argbuf = kmalloc(sizeof(char *)*(argc + 1));
+  i = 0;
+
+  /* Copy each argument into argbuf, keeping a check on invalid pointers. */
+  while(i < argc)
+  {
+    result = copyinstr((const_userptr_t)args[i], temp, ARG_MAX, &length);
+    if(result)
+    {
+      for(int j = 0; j < i; j++)
       {
         kfree(argbuf[j]);
       }
       kfree(temp);
+      kfree(argbuf);
       return result;
     }
+
+    total_size += length;
+    /* If the total size of args exceeds ARG_MAX, return error. */
+    if(total_size > ARG_MAX)
+    {
+      for(int j = 0; j < i; j++)
+      {
+        kfree(argbuf[j]);
+      }
+      kfree(temp);
+      kfree(argbuf);
+      return E2BIG;
+    }
+
+    argbuf[i] = kmalloc(sizeof(char) * length);
+    strcpy(argbuf[i], temp);
+    i++;
   }
 
   kfree(temp);
   argbuf[argc] = NULL;
   *argcount = argc;
+  *buf = argbuf;
   return 0;
 }
 
@@ -325,16 +331,10 @@ sys_execv(const_userptr_t program, userptr_t *args)
   userptr_t *uargs;
   char **argbuf; /* Buffer to temporarily store args. */
 
-  argbuf = kmalloc(sizeof(char*)*ARG_MAX); /* Max total size of args is ARG_MAX. */
-  if(argbuf == NULL)
-  {
-    return ENOMEM;
-  }
-
-  result = extract_args(args, argbuf, &argc);
+  result = extract_args(args, &argbuf, &argc);
   if(result)
   {
-    kfree(argbuf);
+    //kfree(argbuf);
     return result;
   }
 
