@@ -156,6 +156,96 @@ cm_freekpage(unsigned int index)
   kcoremap->cm_nfreepages++; /* Update the free page count. */
 }
 
+paddr_t
+cm_allocupage(vaddr_t vaddr)
+{
+  /* The process must have a valid address space. */
+  KASSERT(curproc->p_addrspace != NULL);
+
+  paddr_t paddr = 0;
+  int info;
+
+  spinlock_acquire(&kcoremap->cm_lock);
+
+  /*
+   * We currently don't support swapping, so return error when physical
+   * memory is full.
+   */
+  if(kcoremap->cm_nfreepages == 0) {
+    spinlock_release(&kcoremap->cm_lock);
+    return 0;
+  }
+
+  /* Get a free page. */
+  for(unsigned i = 0; i < kcoremap->cm_npages; i++) {
+    info = kcoremap->map[i].cme_info;
+    if(CME_ISALLOC(info)) {
+      continue;
+    }
+    /* Found a free page. Get its physical address. */
+    paddr = CME_PADDR(info);
+
+    /* Set up the coremap entry. */
+    info = CME_SETINFALLOC(info, 1);
+    info = CME_ISCONTIG(info, 0);
+    info = CME_SETWRITE(info, 1);
+    kcoremap->map[i].cme_info = info;
+
+    kcoremap->map[i].cme_as = curproc->p_addrspace;
+    kcoremap->map[i].cme_vaddr = vaddr;
+    break;
+  }
+
+  /* Update the coremap fields. */
+  kcoremap->cm_nfreepages--;
+
+  spinlock_release(&kcoremap->cm_lock);
+
+  /*
+   * We already checked if a free page is available. If the above loop failed to
+   * find a free page, that's some error in the coremap's information. We have
+   * nothing to do but panic.
+   */
+  KASSERT(paddr != 0);
+  return paddr;
+}
+
+int
+cm_freeupage(paddr_t paddr)
+{
+  int index = CMINDEX_FROM_PADDR(paddr);  /* Get the index into the coremap. */
+  spinlock_acquire(&kcoremap->cm_lock);
+
+  /* Make sure it's a valid coremap index. */
+  if(index < 0 || index >= kcoremap->cm_nfreepages) {
+    spinlock_release(&kcoremap->cm_lock);
+    return EINVAL;
+  }
+
+  /* This page must belong to the process freeing it. */
+  if(kcoremap->map[index].cme_as != curproc->p_addrspace) {
+    spinlock_release(&kcoremap->cm_lock);
+    return EPERM;
+  }
+
+  /* Free the page up. */
+  kcoremap->map[index].cme_as = NULL;
+  kcoremap->map[index].cme_vaddr = 0;
+
+  int info = kcoremap->map[index].cme_info;
+  info = CME_SETWRITE(info, 0); /* Mark the page as not writeable. */
+  info = CME_SETINFALLOC(info, 0); /* Mark the page as not allocated. */
+  /*
+   * Mark the page as not a part of a contiguous allocation. Userspace pages
+   * never are, but let's just make sure.
+   */
+  info = CME_SETINFCONTIG(info, 0);
+  kcoremap->map[index].cme_info = info;
+
+  spinlock_release(&kcoremap->cm_lock);
+  return 0;
+}
+
 vaddr_t
 alloc_kpages(unsigned npages)
 {
