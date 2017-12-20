@@ -40,6 +40,29 @@
  * used. The cheesy hack versions in dumbvm.c are used instead.
  */
 
+struct segment *
+seg_create(vaddr_t start, size_t npages)
+{
+	/* start must be a page address. */
+	if((start&PAGE_FRAME) != start) {
+		return NULL;
+	}
+
+	/* The segment must fit into the address space. */
+	if(start + npages*PAGE_SIZE >= USERSPACETOP) {
+		return NULL;
+	}
+
+	struct segment *seg = kmalloc(sizeof(*seg));
+	if(seg == NULL) {
+		return NULL;
+	}
+
+	seg->seg_start = start;
+	seg->seg_npages = npages;
+	return seg;
+}
+
 struct addrspace *
 as_create(void)
 {
@@ -179,4 +202,3 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 
 	return 0;
 }
-

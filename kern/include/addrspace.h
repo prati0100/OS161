@@ -36,10 +36,29 @@
 
 
 #include <vm.h>
+#include <array.h>
 #include "opt-dumbvm.h"
 
 struct vnode;
 
+/*
+ * Describes a segment in the address space. A segment is a contiguous region in
+ * virtual memory, though it is likely to be discontiguous in physical memory.
+ * Even though all the pages in a segment are marked as allocated in virtual
+ * memory, they are not necessarily allocated in physical memory until they are
+ * accessed by the process.
+ *
+ * Examples of a segment - the stack segment, the global segment, the text
+ * segment, the heap, etc.
+ */
+struct segment {
+  vaddr_t seg_start;
+  size_t seg_npages;
+};
+
+/* Declare a resizeable array of segments. From array.h */
+DECLARRAY(segment, INLINE);
+DEFARRAY(segment, INLINE);
 
 /*
  * Address space - data structure associated with the virtual memory
@@ -63,13 +82,17 @@ struct addrspace {
          * bits of the page number map into the first level array and the bottom
          * 10 bits map into the second level array.
          */
-
          struct pagetable *as_pgtable;
+         /* A resizeable array of all segments of this address space. */
+         struct segmentarray as_segarray;
 #endif
 };
 
 /*
  * Functions in addrspace.c:
+ *
+ *    seg_create - create a new segment. Returns NULL on error. Two different
+ *                 segments should not overlap.
  *
  *    as_create - create a new empty address space. You need to make
  *                sure this gets called in all the right places. You
@@ -109,6 +132,7 @@ struct addrspace {
  * functions are found in dumbvm.c.
  */
 
+struct segment   *seg_create(vaddr_t start, size_t npages);
 struct addrspace *as_create(void);
 int               as_copy(struct addrspace *src, struct addrspace **ret);
 void              as_activate(void);
