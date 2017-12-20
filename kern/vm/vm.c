@@ -8,6 +8,9 @@
 #include <spl.h>
 #include <lib.h>
 #include <spinlock.h>
+#include <current.h>
+#include <proc.h>
+#include <kern/errno.h>
 
 struct coremap *kcoremap;
 
@@ -189,7 +192,7 @@ cm_allocupage(vaddr_t vaddr)
 
     /* Set up the coremap entry. */
     info = CME_SETINFALLOC(info, 1);
-    info = CME_ISCONTIG(info, 0);
+    info = CME_SETINFCONTIG(info, 0);
     info = CME_SETWRITE(info, 1);
     kcoremap->map[i].cme_info = info;
 
@@ -215,11 +218,12 @@ cm_allocupage(vaddr_t vaddr)
 int
 cm_freeupage(paddr_t paddr)
 {
-  int index = CMINDEX_FROM_PADDR(paddr);  /* Get the index into the coremap. */
+  /* Get the index into the coremap. */
+  unsigned int index = CMINDEX_FROM_PADDR(paddr);
   spinlock_acquire(&kcoremap->cm_lock);
 
   /* Make sure it's a valid coremap index. */
-  if(index < 0 || index >= kcoremap->cm_nfreepages) {
+  if(index >= kcoremap->cm_nfreepages) {
     spinlock_release(&kcoremap->cm_lock);
     return EINVAL;
   }
