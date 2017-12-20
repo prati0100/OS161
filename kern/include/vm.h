@@ -110,11 +110,11 @@ extern struct coremap *kcoremap;
  */
 
 /* Set allocated. */
-#define CME_SETINFALLOC(info, alloc)   (CME_SETINF(info, alloc, CME_ISCONTIG(info), CME_ISWRITE(info)))
+#define CME_SETINFALLOC(info, alloc)   (CME_SETINF((info), alloc, CME_ISCONTIG(info), CME_ISWRITE(info)))
 /* Set contiguous. */
-#define CME_SETINFCONTIG(info, contig) (CME_SETINF(info, CME_ISALLOC(info), contig), CME_ISWRITE(info))
+#define CME_SETINFCONTIG(info, contig) (CME_SETINF((info), CME_ISALLOC(info), (contig), CME_ISWRITE(info)))
 /* Set writeable. */
-#define CME_SETWRITE(info, w)          (CME_SETINF(infi, CME_ISALLOC(info), CME_ISCONTIG(info), w))
+#define CME_SETWRITE(info, w)          (CME_SETINF((info), CME_ISALLOC(info), CME_ISCONTIG(info), w))
 
 /* Decode the coremap entry's info field. */
 #define CME_ISALLOC(x)  ((x)&1)  /* Is the coremap entry page allocated? */
