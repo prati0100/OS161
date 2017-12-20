@@ -161,6 +161,8 @@ cm_allocupage(vaddr_t vaddr)
 {
   /* The process must have a valid address space. */
   KASSERT(curproc->p_addrspace != NULL);
+  /* vaddr should be a valid page address. */
+  KASSERT((vaddr & PAGE_FRAME) == vaddr);
 
   paddr_t paddr = 0;
   int info;
