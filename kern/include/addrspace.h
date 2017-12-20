@@ -58,7 +58,13 @@ struct addrspace {
         size_t as_npages2;
         paddr_t as_stackpbase;
 #else
-        /* Put stuff here for your VM system */
+        /*
+         * We use 2-level page tables to store page table entries. The top 10
+         * bits of the page number map into the first level array and the bottom
+         * 10 bits map into the second level array.
+         */
+
+         struct pagetable *as_pgtable;
 #endif
 };
 
