@@ -68,6 +68,36 @@ pagetable_create()
   return pgt;
 }
 
+void
+pagetable_destroy(struct pagetable *pgt)
+{
+  KASSERT(pgt != NULL);
+  KASSERT(pgt->pgt_nallocpages == 0); /* All the pages must be free. */
+
+  spinlock_acquire(&pgt->pgt_spinlock);
+
+  /* Free up all the page table entries one by one. */
+  for(int i = 0; i < PGT_ENTRIESINALEVEL; i++) {
+    /* If the second level table does not exist, skip. */
+    if(pgt->pgt_firstlevel[i] == NULL) {
+      continue;
+    }
+
+    /* Free up each entry in the second level table. */
+    for(int j = 0; j < PGT_ENTRIESINALEVEL; j++) {
+      if(pgt->pgt_firstlevel[i][j] == NULL) {
+        continue;
+      }
+
+      kfree(pgt->pgt_firstlevel[i][j]);
+    }
+  }
+
+  spinlock_release(&pgt->pgt_spinlock);
+  spinlock_cleanup(&pgt->pgt_spinlock);
+  kfree(pgt);
+}
+
 /*
  * The address has to belong to a valid segment. We don't check for that here,
  * that is the job of the address space function that calls this function.

@@ -41,6 +41,9 @@ struct pagetable {
 /* Create a new pagetable. */
 struct pagetable * pagetable_create(void);
 
+/* Destroy a page table. All the pages must be free before calling this. */
+void pagetable_destroy(struct pagetable *);
+
 /* Allocate a page starting at addr. addr must be page-aligned. */
 int pagetable_allocpage(vaddr_t addr);
 
