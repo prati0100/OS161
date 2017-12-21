@@ -74,8 +74,6 @@ pagetable_destroy(struct pagetable *pgt)
   KASSERT(pgt != NULL);
   KASSERT(pgt->pgt_nallocpages == 0); /* All the pages must be free. */
 
-  spinlock_acquire(&pgt->pgt_spinlock);
-
   /* Free up all the page table entries one by one. */
   for(int i = 0; i < PGT_ENTRIESINALEVEL; i++) {
     /* If the second level table does not exist, skip. */
@@ -89,11 +87,10 @@ pagetable_destroy(struct pagetable *pgt)
         continue;
       }
 
-      kfree(pgt->pgt_firstlevel[i][j]);
+      pagetable_freepage(pgt->pgt_firstlevel[i][j]->pte_pageaddr);
     }
   }
 
-  spinlock_release(&pgt->pgt_spinlock);
   spinlock_cleanup(&pgt->pgt_spinlock);
   kfree(pgt);
 }
