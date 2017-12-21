@@ -72,7 +72,7 @@ void
 pagetable_destroy(struct pagetable *pgt)
 {
   KASSERT(pgt != NULL);
-  KASSERT(pgt->pgt_nallocpages == 0); /* All the pages must be free. */
+  paddr_t paddr;
 
   /* Free up all the page table entries one by one. */
   for(int i = 0; i < PGT_ENTRIESINALEVEL; i++) {
@@ -87,9 +87,15 @@ pagetable_destroy(struct pagetable *pgt)
         continue;
       }
 
-      pagetable_freepage(pgt->pgt_firstlevel[i][j]->pte_pageaddr);
+      paddr = pgt->pgt_firstlevel[i][j]->pte_phyaddr;
+      cm_freeupage(paddr);
+      kfree(pgt->pgt_firstlevel[i][j]);
+      pgt->pgt_nallocpages--;
     }
   }
+
+  /* All pages must have been freed by now. */
+  KASSERT(pgt->pgt_nallocpages == 0);
 
   spinlock_cleanup(&pgt->pgt_spinlock);
   kfree(pgt);
