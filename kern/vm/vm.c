@@ -252,6 +252,41 @@ cm_freeupage(paddr_t paddr)
   return 0;
 }
 
+int
+cm_copypage(paddr_t src, paddr_t dest)
+{
+  unsigned srcindex, destindex;
+  srcindex = CMINDEX_FROM_PADDR(src);
+  destindex = CMINDEX_FROM_PADDR(dest);
+
+  /* Check if src and dest are page-aligned addresses. */
+  if(src % PAGE_SIZE != 0 || dest % PAGE_SIZE != 0) {
+    return EINVAL;
+  }
+
+  /* Check if src and dest both are pages managed by the coremap. */
+  if(src < kcoremap->cm_firstpaddr || dest < kcoremap->cm_firstpaddr) {
+    return EINVAL;
+  }
+  if(srcindex >= kcoremap->cm_npages || destindex >= kcoremap->cm_npages) {
+    return EINVAL;
+  }
+
+  /* Check of dest is allocated. */
+  if(!CME_ISALLOC(kcoremap->map[destindex].cme_info)) {
+    return EFAULT;
+  }
+
+  /* Check if dest is writeable. */
+  if(!CME_ISWRITE(kcoremap->map[destindex].cme_info)) {
+    return EPERM;
+  }
+
+  /* Copy the contents. */
+  memcpy((void *)PADDR_TO_KVADDR(dest), (void *)PADDR_TO_KVADDR(src), PAGE_SIZE);
+  return 0;
+}
+
 vaddr_t
 alloc_kpages(unsigned npages)
 {

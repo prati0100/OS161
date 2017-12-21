@@ -145,6 +145,9 @@ paddr_t cm_allocupage(vaddr_t vaddr);
 /* Free up a userspace page. */
 int cm_freeupage(paddr_t paddr);
 
+/* Copy the contents of the SRC page to DEST page. */
+int cm_copypage(paddr_t src, paddr_t dest);
+
 /* Initialization function */
 void vm_bootstrap(void);
 
