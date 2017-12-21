@@ -115,6 +115,7 @@ pagetable_allocpage(vaddr_t addr)
   pte->pte_phyaddr = 0;
 
   pgt->pgt_firstlevel[firstlvlindex][secondlvlindex] = pte;
+  pgt->pgt_nallocpages++;  /* Update the number of allocated pages. */
   spinlock_release(&pgt->pgt_spinlock);
   return 0;
 }
@@ -150,6 +151,7 @@ pagetable_freepage(vaddr_t addr)
   /* Make sure the page table entry is not corrupted in some weird way. */
   KASSERT(pte->pte_pageaddr == addr);
   paddr_t paddr = pte->pte_phyaddr;
+  pgt->pgt_nallocpages--;  /* Update the number of allocated pages. */
   spinlock_release(&pgt->pgt_spinlock);
 
   /* If the page was not allocated on physical memory, nothing else to do. */
