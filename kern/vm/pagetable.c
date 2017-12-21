@@ -168,3 +168,46 @@ pagetable_freepage(vaddr_t addr)
   }
   return 0;
 }
+
+int
+pagetable_copy(struct pagetable *old, struct pagetable **ret)
+{
+  KASSERT(old != NULL);
+
+  struct pagetable *new = pagetable_create();
+  if(new == NULL) {
+    return ENOMEM;
+  }
+
+  struct pagetableentry *temp;
+
+  /* The lock to makes sure no one modifies the page table while we copy it. */
+  spinlock_acquire(&old->pgt_spinlock);
+
+  /* Copy all the pagetable entries one by one. */
+  for(int i = 0; i < PGT_ENTRIESINALEVEL; i++) {
+    /* If the second level array was not created, skip. */
+    if(old->pgt_firstlevel[i] == NULL) {
+      continue;
+    }
+
+    /* Create the second level array for the new page table. */
+    pagetable_createsecondlvl(new, i);
+
+    /* Copy each entry of the old second level array into the new one. */
+    for(int j = 0; j < PGT_ENTRIESINALEVEL; j++) {
+      if(old->pgt_firstlevel[i][j] != NULL) {
+        temp = kmalloc(sizeof(struct pagetableentry *));
+        temp->pte_pageaddr = old->pgt_firstlevel[i][j]->pte_pageaddr;
+        temp->pte_phyaddr = old->pgt_firstlevel[i][j]->pte_phyaddr;
+        new->pgt_firstlevel[i][j] = temp;
+      }
+    }
+  }
+
+  new->pgt_nallocpages = old->pgt_nallocpages;
+  spinlock_release(&old->pgt_spinlock);
+
+  *ret = new;
+  return 0;
+}
