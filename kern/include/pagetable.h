@@ -2,10 +2,10 @@
  * Author: Pratyush Yadav
  */
 
- #ifndef _PAGETABLE_H_
- #define _PAGETABLE_H_
+#ifndef _PAGETABLE_H_
+#define _PAGETABLE_H_
 
- struct spinlock;
+struct spinlock;
 
 struct pagetableentry {
   /* Add stuff here. */
