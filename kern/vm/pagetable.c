@@ -228,6 +228,12 @@ pagetable_copy(struct pagetable *old, struct pagetable **ret)
     for(int j = 0; j < PGT_ENTRIESINALEVEL; j++) {
       if(old->pgt_firstlevel[i][j] != NULL) {
         temp = kmalloc(sizeof(struct pagetableentry *));
+        /* If the allocation fails, clean up. */
+        if(temp == NULL) {
+          spinlock_release(&old->pgt_spinlock);
+          pagetable_destroy(new);
+          return ENOMEM;
+        }
         temp->pte_pageaddr = old->pgt_firstlevel[i][j]->pte_pageaddr;
         temp->pte_phyaddr = old->pgt_firstlevel[i][j]->pte_phyaddr;
         new->pgt_firstlevel[i][j] = temp;
