@@ -136,11 +136,11 @@ vaddr_t cm_getkpages(unsigned npages);
 void cm_freekpage(unsigned int index);
 
 /*
- * Allocate a userspace page. vaddr is used to store in the coremap entry.
- * Returns the physical address of the page. This page is assigned to the
- * current process. Returns 0 on error.
+ * Allocate a userspace page belonging to the address space AS. VADDR is used to
+ * store in the coremap entry. Returns the physical address of the page. Returns
+ * 0 on error.
  */
-paddr_t cm_allocupage(vaddr_t vaddr);
+paddr_t cm_allocupage(struct addrspace *as, vaddr_t vaddr);
 
 /* Free up a userspace page. */
 int cm_freeupage(paddr_t paddr);

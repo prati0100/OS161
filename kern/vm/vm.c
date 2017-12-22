@@ -160,10 +160,10 @@ cm_freekpage(unsigned int index)
 }
 
 paddr_t
-cm_allocupage(vaddr_t vaddr)
+cm_allocupage(struct addrspace *as, vaddr_t vaddr)
 {
-  /* The process must have a valid address space. */
-  KASSERT(curproc->p_addrspace != NULL);
+  /* as must be a valid address space. */
+  KASSERT(as != NULL);
   /* vaddr should be a valid page address. */
   KASSERT((vaddr & PAGE_FRAME) == vaddr);
 
@@ -196,7 +196,7 @@ cm_allocupage(vaddr_t vaddr)
     info = CME_SETWRITE(info, 1);
     kcoremap->map[i].cme_info = info;
 
-    kcoremap->map[i].cme_as = curproc->p_addrspace;
+    kcoremap->map[i].cme_as = as;
     kcoremap->map[i].cme_vaddr = vaddr;
     break;
   }
