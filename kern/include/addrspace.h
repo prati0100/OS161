@@ -83,6 +83,8 @@ struct addrspace {
          * 10 bits map into the second level array.
          */
          struct pagetable *as_pgtable;
+         struct segment *as_stack;
+         struct segment *as_heap;
          /* A resizeable array of all segments of this address space. */
          struct segmentarray as_segarray;
 #endif
