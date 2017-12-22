@@ -203,9 +203,13 @@ pagetable_freepage(vaddr_t addr)
 }
 
 int
-pagetable_copy(struct pagetable *old, struct pagetable **ret)
+pagetable_copy(struct pagetable *old, struct addrspace *newas, struct pagetable
+                **ret)
 {
   KASSERT(old != NULL);
+  KASSERT(newas != NULL);
+  /* A single process can not have two page tables. */
+  KASSERT(newas != curproc->p_addrspace);
 
   struct pagetable *new = pagetable_create();
   if(new == NULL) {
@@ -238,7 +242,10 @@ pagetable_copy(struct pagetable *old, struct pagetable **ret)
           return ENOMEM;
         }
         temp->pte_pageaddr = old->pgt_firstlevel[i][j]->pte_pageaddr;
-        temp->pte_phyaddr = old->pgt_firstlevel[i][j]->pte_phyaddr;
+        temp->pte_phyaddr = cm_allocupage(newas, temp->pte_pageaddr);
+
+        /* Copy the contents of the old page into the new one. */
+        cm_copypage(old->pgt_firstlevel[i][j]->pte_phyaddr, temp->pte_phyaddr);
         new->pgt_firstlevel[i][j] = temp;
       }
     }

@@ -50,7 +50,11 @@ int pagetable_allocpage(vaddr_t addr);
 /* Free the page at addr, if allocated. addr must be page-aligned. */
 int pagetable_freepage(vaddr_t addr);
 
-/* Copy the OLD page table into RET. */
-int pagetable_copy(struct pagetable *old, struct pagetable **ret);
+/*
+ * Copy the OLD page table into RET. The new page table's pages are assigned to
+ * the address space NEWAS.
+ */
+int pagetable_copy(struct pagetable *old, struct addrspace *newas,
+                struct pagetable **ret);
 
 #endif  /* _PAGETABLE_H_ */
