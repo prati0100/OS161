@@ -243,6 +243,12 @@ pagetable_copy(struct pagetable *old, struct addrspace *newas, struct pagetable
         }
         temp->pte_pageaddr = old->pgt_firstlevel[i][j]->pte_pageaddr;
         temp->pte_phyaddr = cm_allocupage(newas, temp->pte_pageaddr);
+        if(temp->pte_phyaddr == 0) {
+          spinlock_release(&old->pgt_spinlock);
+          pagetable_destroy(new);
+          kfree(temp);
+          return ENOMEM;
+        }
 
         /* Copy the contents of the old page into the new one. */
         cm_copypage(old->pgt_firstlevel[i][j]->pte_phyaddr, temp->pte_phyaddr);
