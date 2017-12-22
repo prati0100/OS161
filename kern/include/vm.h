@@ -44,6 +44,11 @@
 #define VM_FAULT_WRITE       1    /* A write was attempted */
 #define VM_FAULT_READONLY    2    /* A write to a readonly page was attempted*/
 
+/* The maximum size of user stack can be 2M. */
+#define USERSTACK_SIZE 2 * 1024 * 1024
+/* The lowest possible address of the stack. */
+#define USERSTACK_BASE USERSTACK - STACK_SIZE
+
 struct coremapentry {
  struct addrspace *cme_as;  /* Address space this page belongs to. */
  vaddr_t cme_vaddr;  /* Virtual address of this page. */
