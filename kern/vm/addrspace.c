@@ -266,6 +266,11 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 
 	/* Put the segment into the segment array. */
 	segmentarray_set(&as->as_segarray, segindex, seg);
+
+	/* Allocate the pages the segment spans. */
+	for(int i = 0; i < seg_npages; i++) {
+		pagetable_allocpage(vaddr + i*PAGE_SIZE);
+	}
 	return 0;
 }
 
