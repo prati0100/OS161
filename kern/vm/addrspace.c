@@ -331,5 +331,8 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 		}
 		segindex = segmentarray_num(&as->as_segarray) - 1;
 	}
+
+	/* Insert the segment into the array. */
+	segmentarray_set(&as->as_segarray, segindex, stackseg);
 	return 0;
 }
