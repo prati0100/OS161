@@ -51,6 +51,12 @@ int pagetable_allocpage(vaddr_t addr);
 int pagetable_freepage(vaddr_t addr);
 
 /*
+ * Get the page table entry corresponding to ADDR of the given address
+ * space. Returns NULL when the page is not allocated.
+ */
+struct pagetableentry * pagetable_getentry(struct pagetable *, vaddr_t addr);
+
+/*
  * Copy the OLD page table into RET. The new page table's pages are assigned to
  * the address space NEWAS.
  */

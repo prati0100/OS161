@@ -263,3 +263,21 @@ pagetable_copy(struct pagetable *old, struct addrspace *newas, struct pagetable
   *ret = new;
   return 0;
 }
+
+struct pagetableentry *
+pagetable_getentry(struct pagetable *pgt, vaddr_t addr)
+{
+  /* Index into the first level array. */
+  unsigned int firstlvlindex = addr & PGT_FIRSTLEVELMASK;
+  /* Index into the second level array. */
+  unsigned int secondlvlindex = addr & PGT_SECONDLEVELMASK;
+
+  KASSERT(pgt != NULL);
+
+  /* Check if the entry exists or not. */
+  if(pgt->pgt_firstlevel[firstlvlindex] == NULL) {
+    return NULL;
+  }
+
+  return pgt->pgt_firstlevel[firstlvlindex][secondlvlindex];
+}
