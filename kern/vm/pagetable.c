@@ -112,9 +112,9 @@ pagetable_allocpage(vaddr_t addr)
   struct pagetable *pgt = curproc->p_addrspace->as_pgtable;
   KASSERT(pgt != NULL);
   /* Index into the first level array. */
-  unsigned int firstlvlindex = addr & PGT_FIRSTLEVELMASK;
+  unsigned int firstlvlindex = PGT_GETFIRSTLVLINDEX(addr);
   /* Index into the second level array. */
-  unsigned int secondlvlindex = addr & PGT_SECONDLEVELMASK;
+  unsigned int secondlvlindex = PGT_GETSECONDLVLINDEX(addr);
   int result;
 
   spinlock_acquire(&pgt->pgt_spinlock);
@@ -160,9 +160,9 @@ pagetable_freepage(vaddr_t addr)
   struct pagetable *pgt = curproc->p_addrspace->as_pgtable;
   KASSERT(pgt != NULL);
   /* Index into the first level array. */
-  unsigned int firstlvlindex = addr & PGT_FIRSTLEVELMASK;
+  unsigned int firstlvlindex = PGT_GETFIRSTLVLINDEX(addr);
   /* Index into the second level array. */
-  unsigned int secondlvlindex = addr & PGT_SECONDLEVELMASK;
+  unsigned int secondlvlindex = PGT_GETSECONDLVLINDEX(addr);
   struct pagetableentry *pte;
   int result;
 
@@ -269,9 +269,9 @@ struct pagetableentry *
 pagetable_getentry(struct pagetable *pgt, vaddr_t addr)
 {
   /* Index into the first level array. */
-  unsigned int firstlvlindex = addr & PGT_FIRSTLEVELMASK;
+  unsigned int firstlvlindex = PGT_GETFIRSTLVLINDEX(addr);
   /* Index into the second level array. */
-  unsigned int secondlvlindex = addr & PGT_SECONDLEVELMASK;
+  unsigned int secondlvlindex = PGT_GETSECONDLVLINDEX(addr);
 
   KASSERT(pgt != NULL);
 

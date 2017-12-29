@@ -38,6 +38,13 @@ struct pagetable {
 /* Get the index into second level of the page table. */
 #define PGT_SECONDLEVELMASK 0x003FF000 /* Bits 11-20 are 1s, rest are 0s. */
 
+/*
+ * Use these macros to get the index into the first or second level of the
+ * page table. X is the virtual address of the page to be referenced.
+ */
+#define PGT_GETFIRSTLVLINDEX(x)  (((x)&PGT_FIRSTLEVELMASK) >> 22)
+#define PGT_GETSECONDLVLINDEX(x)  (((x)&PGT_SECONDLEVELMASK) >> 12)
+
 /* Create a new pagetable. */
 struct pagetable * pagetable_create(void);
 
