@@ -92,6 +92,7 @@ pagetable_destroy(struct pagetable *pgt)
       kfree(pgt->pgt_firstlevel[i][j]);
       pgt->pgt_nallocpages--;
     }
+    kfree(pgt->pgt_firstlevel[i]);
   }
 
   /* All pages must have been freed by now. */
