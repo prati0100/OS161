@@ -46,16 +46,6 @@
 struct segment *
 seg_create(vaddr_t start, size_t npages)
 {
-	/* start must be a page address. */
-	if((start&PAGE_FRAME) != start) {
-		return NULL;
-	}
-
-	/* The segment must fit into the address space. */
-	if(start + npages*PAGE_SIZE >= USERSPACETOP) {
-		return NULL;
-	}
-
 	struct segment *seg = kmalloc(sizeof(*seg));
 	if(seg == NULL) {
 		return NULL;
