@@ -357,11 +357,12 @@ vm_tlbshootdown(const struct tlbshootdown *tsd)
 /* Load the TLB with the translation of pageaddr. */
 static
 int
-vm_loadtlb(struct addrspace *as, vaddr_t pageaddr)
+vm_loadtlb(struct addrspace *as, vaddr_t faultaddr)
 {
   struct pagetable *pgt;
   struct pagetableentry *pte;
   int spl;
+  vaddr_t pageaddr;
   uint32_t ehi, elo;
 
   if(as == NULL) {
@@ -372,6 +373,9 @@ vm_loadtlb(struct addrspace *as, vaddr_t pageaddr)
 
   pgt = as->as_pgtable;
   KASSERT(pgt != NULL);  /* The process must have a valid page table. */
+
+  /* Get the address of the page where the fault occured. */
+  pageaddr = faultaddr & PAGE_FRAME;
 
   pte = pagetable_getentry(pgt, pageaddr);
   if(pte == NULL) {
