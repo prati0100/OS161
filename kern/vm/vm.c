@@ -11,6 +11,9 @@
 #include <current.h>
 #include <proc.h>
 #include <kern/errno.h>
+#include <pagetable.h>
+#include <addrspace.h>
+#include <machine/tlb.h>
 
 struct coremap *kcoremap;
 
@@ -351,11 +354,76 @@ vm_tlbshootdown(const struct tlbshootdown *tsd)
   (void)tsd;
 }
 
+/* Load the TLB with the translation of pageaddr. */
+static
+int
+vm_loadtlb(struct addrspace *as, vaddr_t pageaddr)
+{
+  struct pagetable *pgt;
+  struct pagetableentry *pte;
+  int spl;
+  uint32_t ehi, elo;
+
+  if(as == NULL) {
+    /* The process is the kernel. But KSEG2 is not used as of now so we panic. */
+    panic("vm_loadtlb: kseg2 address used\n");
+    return 0;
+  }
+
+  pgt = as->as_pgtable;
+  KASSERT(pgt != NULL);  /* The process must have a valid page table. */
+
+  pte = pagetable_getentry(pgt, pageaddr);
+  if(pte == NULL) {
+    /* The page is not allocated. */
+    return EFAULT;
+  }
+
+  /* If the page is not allocated on physical memory, allocate it (lazy allocation). */
+  if(pte->pte_phyaddr == 0) {
+    pte->pte_phyaddr = cm_allocupage(as, pageaddr);
+    if(pte->pte_phyaddr == 0) {
+      DEBUG(DB_MDB, "vm_loadtlb: allocation of the physical page failed\n");
+      return ENOMEM;
+    }
+  }
+
+  /* Disable interrupts while handling the TLB. */
+  spl = splhigh();
+
+  /* Load the translation into the TLB. */
+  ehi = pageaddr & TLBHI_VPAGE;
+  elo = (pte->pte_phyaddr & TLBLO_PPAGE) | TLBLO_VALID | TLBLO_DIRTY;
+  tlb_random(ehi, elo);
+
+  /* Re-enable interrupts. */
+  splx(spl);
+
+  return 0;
+}
 int
 vm_fault(int faulttype, vaddr_t faultaddress)
 {
-  /* Will implement this with page tables and address spaces. Not needed now. */
-  (void) faulttype;
-  (void) faultaddress;
+  int result = 0;
+
+  switch(faulttype) {
+    case VM_FAULT_READ:
+    case VM_FAULT_WRITE:
+      result = vm_loadtlb(curproc->p_addrspace, faultaddress);
+      break;
+    case VM_FAULT_READONLY:
+      /* We always create pages read-write, so we can't get this */
+      panic("dumbvm: got VM_FAULT_READONLY\n");
+      break;
+    default:
+      return EINVAL;
+  }
+
+  if(result) {
+    DEBUG(DB_MDB, "vm_fault: returning %d\n", result);
+    return result;
+  }
+
+  DEBUG(DB_MDB, "vm_fault: returning 0\n");
   return 0;
 }
