@@ -251,6 +251,9 @@ cm_freeupage(paddr_t paddr)
   info = CME_SETINFCONTIG(info, 0);
   kcoremap->map[index].cme_info = info;
 
+  /* Update the number of free pages. */
+  kcoremap->cm_nfreepages++;
+
   spinlock_release(&kcoremap->cm_lock);
   return 0;
 }
