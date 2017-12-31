@@ -383,7 +383,6 @@ vm_loadtlb(struct addrspace *as, vaddr_t pageaddr)
   if(pte->pte_phyaddr == 0) {
     pte->pte_phyaddr = cm_allocupage(as, pageaddr);
     if(pte->pte_phyaddr == 0) {
-      DEBUG(DB_MDB, "vm_loadtlb: allocation of the physical page failed\n");
       return ENOMEM;
     }
   }
@@ -420,10 +419,8 @@ vm_fault(int faulttype, vaddr_t faultaddress)
   }
 
   if(result) {
-    DEBUG(DB_MDB, "vm_fault: returning %d\n", result);
     return result;
   }
 
-  DEBUG(DB_MDB, "vm_fault: returning 0\n");
   return 0;
 }
