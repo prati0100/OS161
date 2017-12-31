@@ -231,12 +231,6 @@ cm_freeupage(paddr_t paddr)
     return EINVAL;
   }
 
-  /* This page must belong to the process freeing it. */
-  if(kcoremap->map[index].cme_as != curproc->p_addrspace) {
-    spinlock_release(&kcoremap->cm_lock);
-    return EPERM;
-  }
-
   /* Free the page up. */
   kcoremap->map[index].cme_as = NULL;
   kcoremap->map[index].cme_vaddr = 0;
