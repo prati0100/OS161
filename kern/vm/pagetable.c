@@ -88,7 +88,9 @@ pagetable_destroy(struct pagetable *pgt)
       }
 
       paddr = pgt->pgt_firstlevel[i][j]->pte_phyaddr;
-      cm_freeupage(paddr);
+      if(paddr != 0) {
+        cm_freeupage(paddr);
+      }
       kfree(pgt->pgt_firstlevel[i][j]);
       pgt->pgt_nallocpages--;
     }
