@@ -144,6 +144,8 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 void
 as_destroy(struct addrspace *as)
 {
+	unsigned i, numsegs;
+
 	KASSERT(as != NULL);
 
 	/* Clean up the page table. This also frees up the pages allocated. */
@@ -155,9 +157,21 @@ as_destroy(struct addrspace *as)
 	 * heap segments are also stored in the segment array. So they will be freen
 	 * by this loop, no need for freeing them specifically.
 	 */
-	for(unsigned i = 0; i < segmentarray_num(&as->as_segarray); i++) {
-		kfree(segmentarray_get(&as->as_segarray, i));
+
+	numsegs = segmentarray_num(&as->as_segarray);
+	for(i = 0; i < numsegs; i++) {
+		kfree(segmentarray_get(&as->as_segarray, 0));
+		/*
+		 * The array must be empty for cleanup. So remove all entries. Note that
+		 * segmentarray_remove() moves the remaining entries to fill the space
+		 * created by the removed entry. For this reason, always remove the first
+		 * entry.
+		 */
+		segmentarray_remove(&as->as_segarray, 0);
 	}
+
+	/* Clean up the segment array. */
+	segmentarray_cleanup(&as->as_segarray);
 	kfree(as);
 }
 
