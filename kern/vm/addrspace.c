@@ -218,6 +218,7 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 
 	int segindex = -1, seg_npages;
 	struct segment *seg;
+	vaddr_t pageaddr;
 	int result;
 
 	KASSERT(as != NULL);
@@ -227,7 +228,12 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 	}
 
 	/* Calculate the number of pages this segment needs. */
-	seg_npages = ROUNDUP(memsize, PAGE_SIZE);
+	seg_npages = ROUNDUP(memsize, PAGE_SIZE)/PAGE_SIZE;
+
+	/* The segment must fit into the address space. */
+	if(vaddr + memsize >= USERSPACETOP) {
+		return EFAULT;
+	}
 
 	/* Create and initialize the segment. */
 	seg = seg_create(vaddr, seg_npages);
@@ -257,9 +263,15 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 	/* Put the segment into the segment array. */
 	segmentarray_set(&as->as_segarray, segindex, seg);
 
+	/*
+	 * The segment may start somewhere in the middle of a page but the allocation
+	 * has to be of a page. So get the address of the page to be allocated.
+	 */
+	pageaddr = vaddr & PAGE_FRAME;
+
 	/* Allocate the pages the segment spans. */
 	for(int i = 0; i < seg_npages; i++) {
-		pagetable_allocpage(vaddr + i*PAGE_SIZE);
+		pagetable_allocpage(pageaddr + i*PAGE_SIZE);
 	}
 	return 0;
 }
