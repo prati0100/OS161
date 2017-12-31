@@ -293,12 +293,16 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 {
 	struct segment *stackseg;
 	int result;
+	size_t stack_npages;
 
 	/* Initial user-level stack pointer */
 	*stackptr = USERSTACK;
 
+	/* Calculate the maximum number of pages the stack can use. */
+	stack_npages = USERSTACK_SIZE/PAGE_SIZE;
+
 	/* Create the stack segment. */
-	stackseg = seg_create(USERSTACK - 1, USERSTACK_SIZE);
+	stackseg = seg_create(USERSTACK_BASE, stack_npages);
 	if(stackseg == NULL) {
 		return ENOMEM;
 	}
@@ -329,5 +333,10 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 
 	/* Insert the segment into the array. */
 	segmentarray_set(&as->as_segarray, segindex, stackseg);
+
+	/* Allocate the pages the segment spans. */
+	for(unsigned i = 0; i < stack_npages; i++) {
+		pagetable_allocpage(USERSTACK_BASE + i*PAGE_SIZE);
+	}
 	return 0;
 }
