@@ -181,7 +181,7 @@ cm_allocupage(struct addrspace *as, vaddr_t vaddr)
    */
   if(kcoremap->cm_nfreepages == 0) {
     spinlock_release(&kcoremap->cm_lock);
-    return 0;
+    return ENOMEM;
   }
 
   /* Get a free page. */
