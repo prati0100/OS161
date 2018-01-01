@@ -95,7 +95,7 @@ int
 as_copy(struct addrspace *old, struct addrspace **ret)
 {
 	struct addrspace *newas;
-	struct segment *tempseg;
+	struct segment *tempseg, *oldseg;
 	int result;
 
 	newas = as_create();
@@ -119,23 +119,29 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 			as_destroy(newas);
 			return ENOMEM;
 		}
-		*tempseg = *(segmentarray_get(&old->as_segarray, i));
-		segmentarray_set(&newas->as_segarray, i, tempseg);
-	}
 
-	/* Copy the heap and stack segments. */
-	newas->as_heap = kmalloc(sizeof(struct segment));
-	if(newas->as_heap == NULL) {
-		as_destroy(newas);
-		return ENOMEM;
+		oldseg = segmentarray_get(&old->as_segarray, i);
+		if(oldseg != NULL) {
+			*tempseg = *oldseg;
+
+			/*
+			 * If the segment is a stack or heap, store its reference in the separate
+			 * pointers for stack and heap as well.
+			 */
+			if(oldseg == old->as_stack) {
+				newas->as_stack = tempseg;
+			}
+			else if(oldseg == old->as_heap) {
+				newas->as_heap = tempseg;
+			}
+
+			segmentarray_set(&newas->as_segarray, i, tempseg);
+		}
+		else {
+			segmentarray_set(&newas->as_segarray, i, NULL);
+			kfree(tempseg);
+		}
 	}
-	*newas->as_heap = *old->as_heap;
-	newas->as_stack = kmalloc(sizeof(struct segment));
-	if(newas->as_stack == NULL) {
-		as_destroy(newas);
-		return ENOMEM;
-	}
-	*newas->as_stack = *old->as_stack;
 
 	*ret = newas;
 	return 0;
