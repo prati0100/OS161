@@ -247,6 +247,12 @@ pagetable_copy(struct pagetable *old, struct addrspace *newas, struct pagetable
           return ENOMEM;
         }
         temp->pte_pageaddr = old->pgt_firstlevel[i][j]->pte_pageaddr;
+        if(old->pgt_firstlevel[i][j]->pte_phyaddr == 0) {
+          temp->pte_phyaddr = 0;
+          new->pgt_firstlevel[i][j] = temp;
+          new->pgt_nallocpages++;
+          continue;
+        }
         temp->pte_phyaddr = cm_allocupage(newas, temp->pte_pageaddr);
         if(temp->pte_phyaddr == 0) {
           spinlock_release(&old->pgt_spinlock);
@@ -258,11 +264,12 @@ pagetable_copy(struct pagetable *old, struct addrspace *newas, struct pagetable
         /* Copy the contents of the old page into the new one. */
         cm_copypage(old->pgt_firstlevel[i][j]->pte_phyaddr, temp->pte_phyaddr);
         new->pgt_firstlevel[i][j] = temp;
+        new->pgt_nallocpages++;
       }
     }
   }
 
-  new->pgt_nallocpages = old->pgt_nallocpages;
+  KASSERT(new->pgt_nallocpages = old->pgt_nallocpages);
   spinlock_release(&old->pgt_spinlock);
 
   *ret = new;
